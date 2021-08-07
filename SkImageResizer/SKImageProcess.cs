@@ -5,6 +5,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using SkiaSharp;
+using System.Linq;
 
 namespace SkImageResizer
 {
@@ -56,27 +57,37 @@ namespace SkImageResizer
             await Task.Yield();
 
             var allFiles = FindImages(sourcePath);
-            foreach (var filePath in allFiles)
-            {
-                var bitmap = SKBitmap.Decode(filePath);
-                var imgPhoto = SKImage.FromBitmap(bitmap);
-                var imgName = Path.GetFileNameWithoutExtension(filePath);
 
-                var sourceWidth = imgPhoto.Width;
-                var sourceHeight = imgPhoto.Height;
+			List<Task> taskList = new List<Task>();
 
-                var destinationWidth = (int)(sourceWidth * scale);
-                var destinationHeight = (int)(sourceHeight * scale);
+			foreach (var filePath in allFiles)
+			{
+				taskList.Add(Task.Run(() =>
+				  {
+					  var bitmap = SKBitmap.Decode(filePath);
+					  var imgPhoto = SKImage.FromBitmap(bitmap);
+					  var imgName = Path.GetFileNameWithoutExtension(filePath);
 
-                using var scaledBitmap = bitmap.Resize(
-                    new SKImageInfo(destinationWidth, destinationHeight),
-                    SKFilterQuality.High);
-                using var scaledImage = SKImage.FromBitmap(scaledBitmap);
-                using var data = scaledImage.Encode(SKEncodedImageFormat.Jpeg, 100);
-                using var s = File.OpenWrite(Path.Combine(destPath, imgName + ".jpg"));
-                data.SaveTo(s);
-            }
-        }
+					  var sourceWidth = imgPhoto.Width;
+					  var sourceHeight = imgPhoto.Height;
+
+					  var destinationWidth = (int)(sourceWidth * scale);
+					  var destinationHeight = (int)(sourceHeight * scale);
+
+					  using var scaledBitmap = bitmap.Resize(
+						  new SKImageInfo(destinationWidth, destinationHeight),
+						  SKFilterQuality.High);
+					  using var scaledImage = SKImage.FromBitmap(scaledBitmap);
+					  using var data = scaledImage.Encode(SKEncodedImageFormat.Jpeg, 100);
+					  using var s = File.OpenWrite(Path.Combine(destPath, imgName + ".jpg"));
+					  data.SaveTo(s);
+				  }));
+
+			}
+
+			await Task.WhenAll(taskList);
+
+		}
 
         /// <summary>
         /// 清空目的目錄下的所有檔案與目錄
@@ -107,10 +118,10 @@ namespace SkImageResizer
         public List<string> FindImages(string srcPath)
         {
             List<string> files = new List<string>();
-            files.AddRange(Directory.GetFiles(srcPath, "*.png", SearchOption.AllDirectories));
-            files.AddRange(Directory.GetFiles(srcPath, "*.jpg", SearchOption.AllDirectories));
-            files.AddRange(Directory.GetFiles(srcPath, "*.jpeg", SearchOption.AllDirectories));
-            return files;
+			files.AddRange(Directory.GetFiles(srcPath, "*.png", SearchOption.AllDirectories));
+			files.AddRange(Directory.GetFiles(srcPath, "*.jpg", SearchOption.AllDirectories));
+			files.AddRange(Directory.GetFiles(srcPath, "*.jpeg", SearchOption.AllDirectories));
+			return files;
         }
     }
 }
