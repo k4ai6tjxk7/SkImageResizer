@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using SkiaSharp;
 using System.Linq;
+using System.Collections.Immutable;
 
 namespace SkImageResizer
 {
@@ -84,9 +85,7 @@ namespace SkImageResizer
 				  }));
 
 			}
-
 			await Task.WhenAll(taskList);
-
 		}
 
         /// <summary>
